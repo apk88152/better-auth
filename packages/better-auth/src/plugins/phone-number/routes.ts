@@ -616,6 +616,7 @@ export const verifyPhoneNumber = (opts: RequiredPhoneNumberOptions) =>
 				{
 					phoneNumber: ctx.body.phoneNumber,
 					user,
+					verifiedCode: opts.code,
 				},
 				ctx,
 			);
