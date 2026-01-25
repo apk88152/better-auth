@@ -1,6 +1,10 @@
 import type { AuthContext, BetterAuthPlugin } from "@better-auth/core";
 import { APIError } from "@better-auth/core/error";
-import type { OAuth2Tokens, OAuthProvider } from "@better-auth/core/oauth2";
+import type {
+	OAuth2Tokens,
+	OAuth2UserInfo,
+	OAuthProvider,
+} from "@better-auth/core/oauth2";
 import {
 	createAuthorizationURL,
 	refreshAccessToken,
@@ -58,7 +62,6 @@ export const genericOAuth = (options: GenericOAuthOptions) => {
 		id: "generic-oauth",
 		init: (ctx: AuthContext) => {
 			const genericProviders = options.config.map((c) => {
-				let finalUserInfoUrl = c.userInfoUrl;
 				return {
 					id: c.providerId,
 					name: c.providerId,
@@ -79,10 +82,14 @@ export const genericOAuth = (options: GenericOAuthOptions) => {
 								method: "GET",
 								headers: c.discoveryHeaders,
 							});
+							if (discovery.error) {
+								throw APIError.from(
+									"BAD_REQUEST",
+									GENERIC_OAUTH_ERROR_CODES.INVALID_OAUTH_CONFIGURATION,
+								);
+							}
 							if (discovery.data) {
 								finalAuthUrl = discovery.data.authorization_endpoint;
-								finalUserInfoUrl =
-									finalUserInfoUrl ?? discovery.data.userinfo_endpoint;
 							}
 						}
 						if (!finalAuthUrl) {
@@ -111,6 +118,11 @@ export const genericOAuth = (options: GenericOAuthOptions) => {
 						codeVerifier?: string | undefined;
 						deviceId?: string | undefined;
 					}) {
+						// Use custom validateAuthorizationCode if provided
+						if (c.validateAuthorizationCode) {
+							return c.validateAuthorizationCode(data);
+						}
+
 						// Use custom getToken if provided
 						if (c.getToken) {
 							return c.getToken(data);
@@ -118,7 +130,7 @@ export const genericOAuth = (options: GenericOAuthOptions) => {
 
 						// Standard token exchange flow
 						let finalTokenUrl = c.tokenUrl;
-						if (c.discoveryUrl) {
+						if (!finalTokenUrl && c.discoveryUrl) {
 							const discovery = await betterFetch<{
 								token_endpoint: string;
 								userinfo_endpoint: string;
@@ -126,9 +138,14 @@ export const genericOAuth = (options: GenericOAuthOptions) => {
 								method: "GET",
 								headers: c.discoveryHeaders,
 							});
+							if (discovery.error) {
+								throw APIError.from(
+									"BAD_REQUEST",
+									GENERIC_OAUTH_ERROR_CODES.TOKEN_URL_NOT_FOUND,
+								);
+							}
 							if (discovery.data) {
 								finalTokenUrl = discovery.data.token_endpoint;
-								finalUserInfoUrl = discovery.data.userinfo_endpoint;
 							}
 						}
 						if (!finalTokenUrl) {
@@ -155,13 +172,19 @@ export const genericOAuth = (options: GenericOAuthOptions) => {
 						refreshToken: string,
 					): Promise<OAuth2Tokens> {
 						let finalTokenUrl = c.tokenUrl;
-						if (c.discoveryUrl) {
+						if (!finalTokenUrl && c.discoveryUrl) {
 							const discovery = await betterFetch<{
 								token_endpoint: string;
 							}>(c.discoveryUrl, {
 								method: "GET",
 								headers: c.discoveryHeaders,
 							});
+							if (discovery.error) {
+								throw APIError.from(
+									"BAD_REQUEST",
+									GENERIC_OAUTH_ERROR_CODES.TOKEN_URL_NOT_FOUND,
+								);
+							}
 							if (discovery.data) {
 								finalTokenUrl = discovery.data.token_endpoint;
 							}
@@ -183,9 +206,39 @@ export const genericOAuth = (options: GenericOAuthOptions) => {
 						});
 					},
 					async getUserInfo(tokens: OAuth2Tokens) {
-						const userInfo = c.getUserInfo
-							? await c.getUserInfo(tokens)
-							: await getUserInfo(tokens, finalUserInfoUrl);
+						let userInfo: OAuth2UserInfo | null = null;
+
+						if (c.getUserInfo) {
+							userInfo = await c.getUserInfo(tokens);
+						} else {
+							// Get userInfoUrl from config or discovery
+							let userInfoUrl = c.userInfoUrl;
+							if (!userInfoUrl && c.discoveryUrl) {
+								const discovery = await betterFetch<{
+									userinfo_endpoint: string;
+								}>(c.discoveryUrl, {
+									method: "GET",
+									headers: c.discoveryHeaders,
+								});
+								if (discovery.error) {
+									throw APIError.from(
+										"BAD_REQUEST",
+										GENERIC_OAUTH_ERROR_CODES.INVALID_OAUTH_CONFIGURATION,
+									);
+								}
+								if (discovery.data) {
+									userInfoUrl = discovery.data.userinfo_endpoint;
+								}
+							}
+							if (!userInfoUrl) {
+								throw APIError.from(
+									"BAD_REQUEST",
+									GENERIC_OAUTH_ERROR_CODES.INVALID_OAUTH_CONFIGURATION,
+								);
+							}
+							userInfo = await getUserInfo(tokens, userInfoUrl);
+						}
+
 						if (!userInfo) {
 							return null;
 						}

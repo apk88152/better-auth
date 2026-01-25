@@ -100,6 +100,21 @@ export interface GenericOAuthConfig {
 		  }) => Promise<OAuth2Tokens>)
 		| undefined;
 	/**
+	 * Custom function to validate authorization code and exchange it for tokens.
+	 * If provided, this function will be used instead of the default authorization code validation logic.
+	 * This allows full control over the validation process, including discovery URL fetching and token exchange.
+	 * @param data - Authorization code validation parameters
+	 * @returns A promise that resolves to OAuth2Tokens
+	 */
+	validateAuthorizationCode?:
+		| ((data: {
+				code: string;
+				redirectURI: string;
+				codeVerifier?: string | undefined;
+				deviceId?: string | undefined;
+		  }) => Promise<OAuth2Tokens>)
+		| undefined;
+	/**
 	 * Custom function to fetch user info.
 	 * If provided, this function will be used instead of the default user info fetching logic.
 	 * @param tokens - The OAuth tokens received after successful authentication

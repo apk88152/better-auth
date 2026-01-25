@@ -339,8 +339,15 @@ export const oAuth2Callback = (options: GenericOAuthOptions) =>
 				}
 			}
 			try {
-				// Use custom getToken if provided
-				if (providerConfig.getToken) {
+				// Use custom validateAuthorizationCode if provided
+				if (providerConfig.validateAuthorizationCode) {
+					tokens = await providerConfig.validateAuthorizationCode({
+						code,
+						redirectURI: `${ctx.context.baseURL}/oauth2/callback/${providerConfig.providerId}`,
+						codeVerifier: providerConfig.pkce ? codeVerifier : undefined,
+					});
+				} else if (providerConfig.getToken) {
+					// Use custom getToken if provided
 					tokens = await providerConfig.getToken({
 						code,
 						redirectURI: `${ctx.context.baseURL}/oauth2/callback/${providerConfig.providerId}`,
