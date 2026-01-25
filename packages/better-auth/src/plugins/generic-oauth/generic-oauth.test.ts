@@ -1488,6 +1488,174 @@ describe("oauth2", async () => {
 		expect(callbackURL).toBe("http://localhost:3000/new_user");
 	});
 
+	it("should support custom validateAuthorizationCode for non-standard providers", async () => {
+		const mockTokenResponse = {
+			access_token: "custom-validate-access-token",
+			refresh_token: "custom-validate-refresh-token",
+			expires_in: 3600,
+		};
+
+		let validateAuthorizationCodeCalled = false;
+		let capturedCode = "";
+		let capturedRedirectURI = "";
+		let capturedCodeVerifier = "";
+
+		const { customFetchImpl, cookieSetter } = await getTestInstance({
+			plugins: [
+				genericOAuth({
+					config: [
+						{
+							providerId: "custom-validate-provider",
+							clientId: clientId,
+							clientSecret: clientSecret,
+							discoveryUrl: `http://localhost:${port}/.well-known/openid-configuration`,
+							pkce: true,
+							// Custom validateAuthorizationCode that has full control over validation
+							validateAuthorizationCode: async ({
+								code,
+								redirectURI,
+								codeVerifier,
+							}) => {
+								validateAuthorizationCodeCalled = true;
+								capturedCode = code;
+								capturedRedirectURI = redirectURI;
+								capturedCodeVerifier = codeVerifier || "";
+
+								// Simulate custom validation logic (e.g., discovery URL fetching, custom token exchange)
+								return {
+									accessToken: mockTokenResponse.access_token,
+									refreshToken: mockTokenResponse.refresh_token,
+									accessTokenExpiresAt: new Date(
+										Date.now() + mockTokenResponse.expires_in * 1000,
+									),
+									scopes: ["openid", "profile", "email"],
+								};
+							},
+							getUserInfo: async (tokens) => {
+								return {
+									id: "validate-test-user",
+									name: "Validate Test User",
+									email: "validate@test.com",
+									emailVerified: true,
+								};
+							},
+						},
+					],
+				}),
+			],
+		});
+
+		const authClient = createAuthClient({
+			plugins: [genericOAuthClient()],
+			baseURL: "http://localhost:3000",
+			fetchOptions: {
+				customFetchImpl,
+			},
+		});
+
+		const headers = new Headers();
+		const res = await authClient.signIn.oauth2({
+			providerId: "custom-validate-provider",
+			callbackURL: "http://localhost:3000/dashboard",
+			newUserCallbackURL: "http://localhost:3000/new_user",
+			fetchOptions: {
+				onSuccess: cookieSetter(headers),
+			},
+		});
+
+		expect(res.data?.url).toContain(`http://localhost:${port}/authorize`);
+
+		// Complete the OAuth flow
+		const { callbackURL } = await simulateOAuthFlow(
+			res.data?.url || "",
+			headers,
+			customFetchImpl,
+		);
+
+		// Verify custom validateAuthorizationCode was called
+		expect(validateAuthorizationCodeCalled).toBe(true);
+		expect(capturedCode).toBeTruthy();
+		expect(capturedRedirectURI).toContain(
+			"/oauth2/callback/custom-validate-provider",
+		);
+		expect(capturedCodeVerifier).toBeTruthy(); // PKCE is enabled
+		expect(callbackURL).toBe("http://localhost:3000/new_user");
+	});
+
+	it("should prioritize validateAuthorizationCode over getToken when both are provided", async () => {
+		let validateAuthorizationCodeCalled = false;
+		let getTokenCalled = false;
+
+		const { customFetchImpl, cookieSetter } = await getTestInstance({
+			plugins: [
+				genericOAuth({
+					config: [
+						{
+							providerId: "priority-test-provider",
+							clientId: clientId,
+							clientSecret: clientSecret,
+							discoveryUrl: `http://localhost:${port}/.well-known/openid-configuration`,
+							pkce: true,
+							// Both functions provided - validateAuthorizationCode should take precedence
+							validateAuthorizationCode: async () => {
+								validateAuthorizationCodeCalled = true;
+								return {
+									accessToken: "validate-token",
+									refreshToken: "validate-refresh",
+									accessTokenExpiresAt: new Date(Date.now() + 3600000),
+									scopes: ["openid"],
+								};
+							},
+							getToken: async () => {
+								getTokenCalled = true;
+								return {
+									accessToken: "get-token",
+									refreshToken: "get-refresh",
+									accessTokenExpiresAt: new Date(Date.now() + 3600000),
+									scopes: ["openid"],
+								};
+							},
+							getUserInfo: async () => {
+								return {
+									id: "priority-test-user",
+									name: "Priority Test User",
+									email: "priority@test.com",
+									emailVerified: true,
+								};
+							},
+						},
+					],
+				}),
+			],
+		});
+
+		const authClient = createAuthClient({
+			plugins: [genericOAuthClient()],
+			baseURL: "http://localhost:3000",
+			fetchOptions: {
+				customFetchImpl,
+			},
+		});
+
+		const headers = new Headers();
+		const res = await authClient.signIn.oauth2({
+			providerId: "priority-test-provider",
+			callbackURL: "http://localhost:3000/dashboard",
+			fetchOptions: {
+				onSuccess: cookieSetter(headers),
+			},
+		});
+
+		expect(res.data?.url).toContain(`http://localhost:${port}/authorize`);
+
+		// Complete the OAuth flow
+		await simulateOAuthFlow(res.data?.url || "", headers, customFetchImpl);
+
+		// Verify validateAuthorizationCode was called, but getToken was not
+		expect(validateAuthorizationCodeCalled).toBe(true);
+		expect(getTokenCalled).toBe(false);
+	});
+
 	// Note: raw token data preservation is already tested in the other custom getToken tests above
 	// This test is redundant as the GET-based and custom provider tests verify raw data preservation
 
