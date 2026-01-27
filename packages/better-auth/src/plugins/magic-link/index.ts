@@ -133,6 +133,8 @@ const magicLinkVerifyQuerySchema = z.object({
 		})
 		.optional(),
 });
+
+
 export const magicLink = (options: MagicLinkOptions) => {
 	const opts = {
 		storeToken: "plain",
@@ -151,10 +153,6 @@ export const magicLink = (options: MagicLinkOptions) => {
 			return await opts.storeToken.hash(token);
 		}
 		return token;
-	}
-
-	function generateVerificationUrl() {
-		
 	}
 
 	return {
@@ -207,6 +205,56 @@ export const magicLink = (options: MagicLinkOptions) => {
 				},
 				async (ctx) => {
 					const { email } = ctx.body;
+
+					async function generateVerificationUrl(body: {
+						email: string;
+						callbackURL?: string | undefined;
+						newUserCallbackURL?: string | undefined;
+						errorCallbackURL?: string | undefined;
+					}) {
+
+						const {email, callbackURL, newUserCallbackURL, errorCallbackURL} = body
+
+						const verificationToken = opts?.generateToken
+							? await opts.generateToken(email)
+							: generateRandomString(32, "a-z", "A-Z");
+						const storedToken = await storeToken(ctx, verificationToken);
+						await ctx.context.internalAdapter.createVerificationValue({
+							identifier: storedToken,
+							value: JSON.stringify({ email, name: ctx.body.name }),
+							expiresAt: new Date(Date.now() + (opts.expiresIn || 60 * 5) * 1000),
+						});
+						const realBaseURL = new URL(ctx.context.baseURL);
+						const pathname = realBaseURL.pathname === "/" ? "" : realBaseURL.pathname;
+						const basePath = pathname ? "" : ctx.context.options.basePath || "";
+						const url = new URL(
+							`${pathname}${basePath}/magic-link/verify`,
+							realBaseURL.origin,
+						);
+						url.searchParams.set("token", verificationToken);
+						url.searchParams.set("callbackURL", body.callbackURL || "/");
+						if (newUserCallbackURL) {
+							url.searchParams.set("newUserCallbackURL", newUserCallbackURL);
+						}
+						if (errorCallbackURL) {
+							url.searchParams.set("errorCallbackURL", errorCallbackURL);
+						}
+						await options.sendMagicLink(
+							{
+								email,
+								url: url.toString(),
+								token: verificationToken,
+							},
+							ctx,
+						);
+					}
+
+					generateVerificationUrl({
+						email,
+						callbackURL: ctx.body.callbackURL || "/",
+						newUserCallbackURL: ctx.body.newUserCallbackURL,
+						errorCallbackURL: ctx.body.errorCallbackURL
+					})
 
 					const verificationToken = opts?.generateToken
 						? await opts.generateToken(email)
