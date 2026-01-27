@@ -28,21 +28,16 @@ export const generateVerificationUrl = createAuthEndpoint(
       },
       openapi: {
         operationId: "generate-verification-url",
-        description: "Update the current user",
+        description: "Generate a verification URL",
         requestBody: {
           content: {
             "application/json": {
               schema: {
                 type: "object",
                 properties: {
-                  name: {
+                  email: {
                     type: "string",
-                    description: "The name of the user",
-                  },
-                  image: {
-                    type: "string",
-                    description: "The image of the user",
-                    nullable: true,
+                    description: "The email of the user",
                   },
                 },
               },

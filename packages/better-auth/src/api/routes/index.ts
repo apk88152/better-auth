@@ -9,4 +9,4 @@ export * from "./sign-in";
 export * from "./sign-out";
 export * from "./sign-up";
 export * from "./update-user";
-export * from "./generateVerificationUrl"
+export * from "./generate-verification-url"
