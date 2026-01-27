@@ -153,6 +153,10 @@ export const magicLink = (options: MagicLinkOptions) => {
 		return token;
 	}
 
+	function generateVerificationUrl() {
+		
+	}
+
 	return {
 		id: "magic-link",
 		endpoints: {
