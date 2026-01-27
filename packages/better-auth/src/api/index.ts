@@ -44,6 +44,7 @@ import {
 	updateUser,
 	verifyEmail,
 	verifyPassword,
+	generateVerificationUrl
 } from "./routes";
 import { toAuthEndpoints } from "./to-auth-endpoints";
 
@@ -239,6 +240,7 @@ export function getEndpoints<Option extends BetterAuthOptions>(
 		refreshToken,
 		getAccessToken,
 		accountInfo,
+		generateVerificationUrl,
 	};
 	const endpoints = {
 		...baseEndpoints,
