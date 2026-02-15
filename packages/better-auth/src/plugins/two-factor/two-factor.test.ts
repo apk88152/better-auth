@@ -1138,3 +1138,30 @@ describe("OTP storage modes", async () => {
 		});
 	});
 });
+
+describe("enableByDefault option", async () => {
+	const { customFetchImpl, testUser } = await getTestInstance({
+		secret: DEFAULT_SECRET,
+		plugins: [
+			twoFactor({
+				enableByDefault: true,
+			}),
+		],
+	});
+
+	const client = createAuthClient({
+		plugins: [twoFactorClient()],
+		fetchOptions: {
+			customFetchImpl,
+			baseURL: "http://localhost:3000/api/auth",
+		},
+	});
+
+	it("should require 2FA setup when user signs in without 2FA enabled", async () => {
+		const res = await client.signIn.email({
+			email: testUser.email,
+			password: testUser.password,
+		});
+		expect((res.data as any)?.twoFactorSetupRequired).toBe(true);
+	});
+});
