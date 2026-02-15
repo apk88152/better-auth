@@ -181,6 +181,8 @@ const authOptions = {
 					});
 				},
 			},
+			// Uncomment to require all users to set up 2FA
+			// enableByDefault: true,
 		}),
 		passkey(),
 		openAPI(),

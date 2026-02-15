@@ -1,5 +1,4 @@
 import { BetterAuthError } from "@better-auth/core/error";
-import { getKyselyDatabaseType } from "@better-auth/kysely-adapter";
 import { getAdapter } from "../db/adapter-kysely";
 import { getMigrations } from "../db/get-migration";
 import type { BetterAuthOptions } from "../types";
@@ -9,8 +8,12 @@ export const init = async (options: BetterAuthOptions) => {
 	const adapter = await getAdapter(options);
 
 	// Get database type using Kysely's dialect detection
-	const getDatabaseType = (database: BetterAuthOptions["database"]) =>
-		getKyselyDatabaseType(database) || "unknown";
+	const getDatabaseType = async (database: BetterAuthOptions["database"]) => {
+		const { getKyselyDatabaseType } = await import(
+			"@better-auth/kysely-adapter"
+		);
+		return getKyselyDatabaseType(database) || "unknown";
+	};
 
 	// Use base context creation
 	const ctx = await createAuthContext(adapter, options, getDatabaseType);

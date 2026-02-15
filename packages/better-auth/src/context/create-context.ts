@@ -83,7 +83,9 @@ function validateSecret(
 export async function createAuthContext(
 	adapter: DBAdapter<BetterAuthOptions>,
 	options: BetterAuthOptions,
-	getDatabaseType: (database: BetterAuthOptions["database"]) => string,
+	getDatabaseType:
+		| ((database: BetterAuthOptions["database"]) => string)
+		| ((database: BetterAuthOptions["database"]) => Promise<string>),
 ): Promise<AuthContext> {
 	//set default options for stateless mode
 	if (!options.database) {
@@ -189,7 +191,7 @@ Most of the features of Better Auth will not work correctly.`,
 		database:
 			typeof options.database === "function"
 				? "adapter"
-				: getDatabaseType(options.database),
+				: await getDatabaseType(options.database),
 	});
 
 	const pluginIds = new Set(options.plugins!.map((p) => p.id));
