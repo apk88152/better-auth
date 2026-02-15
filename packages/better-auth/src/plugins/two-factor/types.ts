@@ -39,6 +39,13 @@ export interface TwoFactorOptions {
 	 * @default 600 (10 minutes)
 	 */
 	twoFactorCookieMaxAge?: number | undefined;
+	/**
+	 * Require all users to set up two-factor authentication.
+	 * When enabled, users without 2FA will be prompted to enable it after signing in.
+	 *
+	 * @default false
+	 */
+	enableByDefault?: boolean | undefined;
 }
 
 export interface UserWithTwoFactor extends User {

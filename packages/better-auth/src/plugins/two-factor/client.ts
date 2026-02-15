@@ -12,6 +12,11 @@ export const twoFactorClient = (
 				 * their two factor
 				 */
 				onTwoFactorRedirect?: () => void | Promise<void>;
+				/**
+				 * a redirect function to call if a user needs to set up
+				 * two factor authentication (when enableByDefault is true)
+				 */
+				onTwoFactorSetupRequired?: () => void | Promise<void>;
 		  }
 		| undefined,
 ) => {
@@ -43,6 +48,11 @@ export const twoFactorClient = (
 						if (context.data?.twoFactorRedirect) {
 							if (options?.onTwoFactorRedirect) {
 								await options.onTwoFactorRedirect();
+							}
+						}
+						if (context.data?.twoFactorSetupRequired) {
+							if (options?.onTwoFactorSetupRequired) {
+								await options.onTwoFactorSetupRequired();
 							}
 						}
 					},

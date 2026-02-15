@@ -311,6 +311,13 @@ export const twoFactor = <O extends TwoFactorOptions>(options?: O) => {
 							return;
 						}
 
+						// Check if 2FA is required by default but not enabled
+						if (options?.enableByDefault && !data?.user.twoFactorEnabled) {
+							return ctx.json({
+								twoFactorSetupRequired: true,
+							});
+						}
+
 						if (!data?.user.twoFactorEnabled) {
 							return;
 						}
