@@ -251,11 +251,11 @@ After the user has entered their 2FA code, you can verify it using `twoFactor.ve
 ```ts
 type verifyTOTP = {
     /**
-     * The otp code to verify. 
+     * The otp code to verify.
      */
     code: string = "012345"
     /**
-     * If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time. 
+     * If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time.
      */
     trustDevice?: boolean = true
 }
@@ -293,7 +293,7 @@ Sending an OTP is done by calling the `twoFactor.sendOtp` function. This functio
 ```ts
 type send2FaOTP = {
     /**
-     * If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time. 
+     * If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time.
      */
     trustDevice?: boolean = true
 }
@@ -312,11 +312,11 @@ After the user has entered their OTP code, you can verify it
 ```ts
 type verifyOTP = {
     /**
-     * The otp code to verify. 
+     * The otp code to verify.
      */
     code: string = "012345"
     /**
-     * If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time. 
+     * If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time.
      */
     trustDevice?: boolean = true
 }
@@ -338,7 +338,7 @@ Generate backup codes for account recovery:
 ```ts
 type generateBackupCodes = {
     /**
-     * The users password. 
+     * The users password.
      */
     password: string
 }
@@ -363,15 +363,15 @@ You can now allow users to provide a backup code as an account recovery method.
 ```ts
 type verifyBackupCode = {
     /**
-     * A backup code to verify. 
+     * A backup code to verify.
      */
     code: string = "123456"
     /**
-     * If true, the session cookie will not be set. 
+     * If true, the session cookie will not be set.
      */
     disableSession?: boolean = false
     /**
-     * If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time. 
+     * If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time.
      */
     trustDevice?: boolean = true
 }
@@ -395,7 +395,7 @@ To display the backup codes to the user, you can call `viewBackupCodes` on the s
 ```ts
 type viewBackupCodes = {
     /**
-     * The user ID to view all backup codes. 
+     * The user ID to view all backup codes.
      */
     userId?: string | null = "user-id"
 }
@@ -464,6 +464,24 @@ Table: `twoFactor`
 
 **skipVerificationOnEnable**: Skip the verification process before enabling two factor for a user.
 
+**enableByDefault**: Require all users to set up two-factor authentication. When enabled, users without 2FA will receive a `twoFactorSetupRequired: true` response after signing in, indicating they need to enable 2FA before continuing. You can handle this similar to `twoFactorRedirect`:
+
+```ts title="sign-in.tsx"
+await authClient.signIn.email({
+        email: "user@example.com",
+        password: "password123",
+    },
+    {
+        async onSuccess(context) {
+            if (context.data.twoFactorSetupRequired) {
+                // Redirect user to enable 2FA
+                window.location.href = "/enable-2fa"
+            }
+        },
+    }
+)
+```
+
 **Issuer**: The issuer is the name of your application. It's used to generate TOTP codes. It'll be displayed in the authenticator apps.
 
 **TOTP options**
@@ -496,7 +514,7 @@ these are options for OTP.
         type: "function",
     },
     period: {
-        description: "The period for otp in minutes.", 
+        description: "The period for otp in minutes.",
         type: "number",
         default: 3,
     },
@@ -546,11 +564,11 @@ import { twoFactorClient } from "better-auth/client/plugins"
 
 const authClient =  createAuthClient({
     plugins: [
-        twoFactorClient({ // [!code highlight]
-            onTwoFactorRedirect(){ // [!code highlight]
-                window.location.href = "/2fa" // Handle the 2FA verification redirect // [!code highlight]
-            } // [!code highlight]
-        }) // [!code highlight]
+        twoFactorClient({
+            onTwoFactorRedirect(){
+                window.location.href = "/2fa" // Handle the 2FA verification redirect
+            }
+        })
     ]
 })
 ```
@@ -559,3 +577,5 @@ const authClient =  createAuthClient({
 **Options**
 
 `onTwoFactorRedirect`: A callback that will be called when the user needs to verify their 2FA code. This can be used to redirect the user to the 2FA page.
+
+`onTwoFactorSetupRequired`: A callback that will be called when the user needs to set up 2FA (when `enableByDefault` is enabled on the server). This can be used to redirect the user to the 2FA setup page.
